@@ -2,19 +2,53 @@ import React, { Component } from 'react'
 import '../styles/Chat.css'
 import ChatInput from './ChatInput'
 import ChatMessages from './ChatMessages'
+import { graphql, compose } from 'react-apollo'
+import gql from 'graphql-tag'
+
+const NEW_MESSAGE_SUBSCRIPTION = gql`
+  subscription NewMessageSubscription {
+    Message(filter: {
+      mutation_in: [CREATED]
+    }) {
+      node {
+        id
+        text
+        createdAt
+        sentBy {
+          id
+          name
+        }
+      }
+    }
+  }
+`
 
 class Chat extends Component {
 
   state = {
-    message: '',
-    allMessages: []
+    message: ''
+  }
+
+  componentDidMount() {
+    this.createMessageSubscription = this.props.allMessagesQuery.subscribeToMore({
+      document: NEW_MESSAGE_SUBSCRIPTION,
+      updateQuery: ( previousState, {subscriptionData}) => {
+        console.log(`received message: ${subscriptionData.Message.node.text}`);
+        const newMessage = subscriptionData.Message.node
+        const messages = previousState.allMessages.concat([newMessage])
+        return {
+          allMessages: messages
+        }
+      },
+      onError: (err) => console.error(err)
+    })
   }
 
   render() {
     return (
       <div className='Chat'>
         <ChatMessages
-          messages={this.state.allMessages || []}
+          messages={this.props.allMessagesQuery.allMessages || []}
           endRef={this._endRef}
         />
         <ChatInput
@@ -29,9 +63,12 @@ class Chat extends Component {
 
   _onSend = () => {
     console.log(`Send: ${this.state.message}`)
-    const newMessages = this.state.allMessages
-    newMessages.push({ text: this.state.message })
-    this.setState({allMessages: newMessages})
+    this.props.createMessageMutation({
+      variables: {
+        text: this.state.message,
+        sentById: this.props.userId
+      }
+    })
   }
 
   _resetText = () => {
@@ -56,4 +93,37 @@ class Chat extends Component {
 
 }
 
-export default Chat
+const ALL_MESSAGES_QUERY = gql`
+  query AllMessagesQuery {
+    allMessages(last: 100) {
+      id
+      text
+      createdAt
+      sentBy {
+        id
+        name
+      }
+    }
+  }
+`
+
+const CREATE_MESSAGE_MUTATION = gql`
+  mutation CreateMessageMutation($text: String!, $sentById: ID!) {
+    createMessage(text: $text, sentById: $sentById) {
+      id
+      text
+      createdAt
+      sentBy {
+        id
+        name
+      }
+    }
+  }
+`
+
+export default compose(
+  graphql(CREATE_MESSAGE_MUTATION, {name: 'createMessageMutation'}),
+  graphql(ALL_MESSAGES_QUERY, {name: 'allMessagesQuery'})
+)(Chat)
+
+// /export default Chat
