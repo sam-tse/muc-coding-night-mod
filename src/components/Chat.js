@@ -5,23 +5,6 @@ import ChatMessages from './ChatMessages'
 import { graphql, compose } from 'react-apollo'
 import gql from 'graphql-tag'
 
-const NEW_MESSAGE_SUBSCRIPTION = gql`
-  subscription NewMessageSubscription {
-    Message(filter: {
-      mutation_in: [CREATED]
-    }) {
-      node {
-        id
-        text
-        createdAt
-        sentBy {
-          id
-          name
-        }
-      }
-    }
-  }
-`
 
 class Chat extends Component {
 
@@ -92,6 +75,25 @@ class Chat extends Component {
   }
 
 }
+
+// SUBSCRIPTION
+const NEW_MESSAGE_SUBSCRIPTION = gql`
+  subscription NewMessageSubscription {
+    Message(filter: {
+      mutation_in: [CREATED]
+    }) {
+      node {
+        id
+        text
+        createdAt
+        sentBy {
+          id
+          name
+        }
+      }
+    }
+  }
+`
 
 const ALL_MESSAGES_QUERY = gql`
   query AllMessagesQuery {
